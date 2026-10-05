@@ -1,0 +1,5 @@
+name = "fxcalc"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# 无需 R2/KV、无需密钥，裸 Worker 即可跑
