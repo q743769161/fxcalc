@@ -10,6 +10,8 @@
 // 内存缓存：每个基准货币缓存 6 小时
 let _rateCache = {};
 
+const FIAT_LIST = ["AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SVC", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VED", "VES", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWG"];
+
 async function getRates(base) {
   base = (base || "USD").toUpperCase();
   const now = Date.now();
@@ -17,34 +19,42 @@ async function getRates(base) {
   if (hit && now - hit.ts < 6 * 3600 * 1000) return hit.data;
 
   let data = null;
-  // 主：frankfurter（欧洲央行汇率，干净）
+  // 主：jsdelivr currency-api（全球法币全覆盖）
   try {
-    const r = await fetch("https://api.frankfurter.app/latest?from=" + base, {
-      redirect: "follow",
-      headers: { "User-Agent": "fxcalc/1.0" },
-    });
+    const r = await fetch(
+      "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/" +
+        base.toLowerCase() +
+        ".json"
+    );
     if (r.ok) {
       const j = await r.json();
-      if (j && j.rates) data = { base: j.base, rates: j.rates, date: j.date, source: "frankfurter" };
+      const raw = j && j[base.toLowerCase()];
+      if (raw) {
+        const rates = {};
+        for (const c of FIAT_LIST) {
+          const v = raw[c.toLowerCase()];
+          if (typeof v === "number" && v > 0) rates[c] = v;
+        }
+        if (Object.keys(rates).length > 20) {
+          data = { base: base, rates: rates, date: j.date, source: "currency-api" };
+        }
+      }
     }
   } catch (e) {}
-  // 备：jsdelivr currency-api
+  // 备：frankfurter（欧洲央行汇率，约 30 种主要货币）
   if (!data) {
     try {
-      const r = await fetch(
-        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/" +
-          base.toLowerCase() +
-          ".json"
-      );
+      const r = await fetch("https://api.frankfurter.app/latest?from=" + base, {
+        redirect: "follow",
+        headers: { "User-Agent": "fxcalc/1.0" },
+      });
       if (r.ok) {
         const j = await r.json();
-        const rates = j && j[base.toLowerCase()];
-        if (rates) data = { base: base, rates: rates, date: j.date, source: "currency-api" };
+        if (j && j.rates) data = { base: j.base, rates: j.rates, date: j.date, source: "frankfurter" };
       }
     } catch (e) {}
   }
   if (!data) throw new Error("汇率接口暂不可用");
-  // frankfurter 不返回基准货币自身，补上 1
   data.rates[data.base] = 1;
   _rateCache[base] = { ts: now, data: data };
   return data;
@@ -118,12 +128,162 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
 </div>
 <script>
 var CURS = [
-  ["USD","美元","$"],["CNY","人民币","¥"],["EUR","欧元","€"],["GBP","英镑","£"],
-  ["JPY","日元","¥"],["HKD","港币","HK$"],["AUD","澳元","A$"],["CAD","加元","C$"],
-  ["SGD","新元","S$"],["KRW","韩元","₩"],["TWD","台币","NT$"],["THB","泰铢","฿"],
-  ["CHF","瑞郎","CHF"],["NZD","纽元","NZ$"],["MXN","墨西哥比索","MX$"],["INR","印度卢比","₹"],
-  ["VND","越南盾","₫"],["IDR","印尼盾","Rp"],["MYR","马来西亚令吉","RM"],["PHP","菲律宾比索","₱"],
-  ["AED","迪拉姆","AED"],["BRL","雷亚尔","R$"],["ZAR","兰特","R"]
+  ["USD","美元","$"],
+  ["CNY","人民币","¥"],
+  ["EUR","欧元","€"],
+  ["GBP","英镑","£"],
+  ["JPY","日元","¥"],
+  ["HKD","港币","HK$"],
+  ["AUD","澳元","A$"],
+  ["CAD","加元","C$"],
+  ["SGD","新加坡元","S$"],
+  ["KRW","韩元","₩"],
+  ["TWD","台币","NT$"],
+  ["THB","泰铢","฿"],
+  ["CHF","瑞士法郎","CHF"],
+  ["NZD","新西兰元","NZ$"],
+  ["MXN","墨西哥比索","MX$"],
+  ["INR","印度卢比","₹"],
+  ["VND","越南盾","₫"],
+  ["IDR","印尼盾","Rp"],
+  ["MYR","马来西亚令吉","RM"],
+  ["PHP","菲律宾比索","₱"],
+  ["AED","阿联酋迪拉姆","AED"],
+  ["BRL","巴西雷亚尔","R$"],
+  ["ZAR","南非兰特","R"],
+  ["AFN","Afghan Afghani",""],
+  ["ALL","Albanian Lek",""],
+  ["AMD","Armenian Dram",""],
+  ["ANG","Dutch Guilder",""],
+  ["AOA","Angolan Kwanza",""],
+  ["ARS","阿根廷比索",""],
+  ["AWG","Aruban or Dutch Guilder",""],
+  ["AZN","Azerbaijan Manat",""],
+  ["BAM","Bosnian Convertible Mark",""],
+  ["BBD","Barbadian or Bajan Dollar",""],
+  ["BDT","孟加拉塔卡",""],
+  ["BGN","保加利亚列弗",""],
+  ["BHD","Bahraini Dinar",""],
+  ["BIF","Burundian Franc",""],
+  ["BMD","Bermudian Dollar",""],
+  ["BND","Bruneian Dollar",""],
+  ["BOB","Bolivian Bolíviano",""],
+  ["BSD","Bahamian Dollar",""],
+  ["BTN","Bhutanese Ngultrum",""],
+  ["BWP","Botswana Pula",""],
+  ["BYN","Belarusian Ruble",""],
+  ["BZD","Belizean Dollar",""],
+  ["CDF","Congolese Franc",""],
+  ["CLP","智利比索",""],
+  ["COP","哥伦比亚比索",""],
+  ["CRC","Costa Rican Colon",""],
+  ["CUP","Cuban Peso",""],
+  ["CVE","Cape Verdean Escudo",""],
+  ["CZK","捷克克朗","Kč"],
+  ["DJF","Djiboutian Franc",""],
+  ["DKK","丹麦克朗","kr"],
+  ["DOP","Dominican Peso",""],
+  ["DZD","Algerian Dinar",""],
+  ["EGP","埃及镑",""],
+  ["ERN","Eritrean Nakfa",""],
+  ["ETB","Ethiopian Birr",""],
+  ["FJD","Fijian Dollar",""],
+  ["FKP","Falkland Island Pound",""],
+  ["GEL","Georgian Lari",""],
+  ["GHS","Ghanaian Cedi",""],
+  ["GIP","Gibraltar Pound",""],
+  ["GMD","Gambian Dalasi",""],
+  ["GNF","Guinean Franc",""],
+  ["GTQ","Guatemalan Quetzal",""],
+  ["GYD","Guyanese Dollar",""],
+  ["HNL","Honduran Lempira",""],
+  ["HTG","Haitian Gourde",""],
+  ["HUF","匈牙利福林",""],
+  ["ILS","以色列新谢克尔","₪"],
+  ["IQD","Iraqi Dinar",""],
+  ["IRR","Iranian Rial",""],
+  ["ISK","Icelandic Krona",""],
+  ["JMD","Jamaican Dollar",""],
+  ["JOD","Jordanian Dinar",""],
+  ["KES","肯尼亚先令",""],
+  ["KGS","Kyrgyzstani Som",""],
+  ["KHR","柬埔寨瑞尔",""],
+  ["KMF","Comorian Franc",""],
+  ["KPW","North Korean Won",""],
+  ["KWD","科威特第纳尔",""],
+  ["KYD","Caymanian Dollar",""],
+  ["KZT","Kazakhstani Tenge",""],
+  ["LAK","老挝基普",""],
+  ["LBP","Lebanese Pound",""],
+  ["LKR","斯里兰卡卢比",""],
+  ["LRD","Liberian Dollar",""],
+  ["LSL","Basotho Loti",""],
+  ["LYD","Libyan Dinar",""],
+  ["MAD","Moroccan Dirham",""],
+  ["MDL","Moldovan Leu",""],
+  ["MGA","Malagasy Ariary",""],
+  ["MKD","Macedonian Denar",""],
+  ["MMK","缅甸缅元",""],
+  ["MNT","Mongolian Tughrik",""],
+  ["MOP","澳门元",""],
+  ["MRU","Mauritanian Ouguiya",""],
+  ["MUR","Mauritian Rupee",""],
+  ["MVR","Maldivian Rufiyaa",""],
+  ["MWK","Malawian Kwacha",""],
+  ["MZN","Mozambican Metical",""],
+  ["NAD","Namibian Dollar",""],
+  ["NGN","尼日利亚奈拉",""],
+  ["NIO","Nicaraguan Cordoba",""],
+  ["NOK","挪威克朗","kr"],
+  ["NPR","Nepalese Rupee",""],
+  ["OMR","阿曼里亚尔",""],
+  ["PAB","Panamanian Balboa",""],
+  ["PEN","秘鲁索尔",""],
+  ["PGK","Papua New Guinean Kina",""],
+  ["PKR","巴基斯坦卢比",""],
+  ["PLN","波兰兹罗提","zł"],
+  ["PYG","Paraguayan Guarani",""],
+  ["QAR","卡塔尔里亚尔",""],
+  ["RON","罗马尼亚列伊",""],
+  ["RSD","Serbian Dinar",""],
+  ["RUB","俄罗斯卢布","₽"],
+  ["RWF","Rwandan Franc",""],
+  ["SAR","沙特里亚尔","﷼"],
+  ["SBD","Solomon Islander Dollar",""],
+  ["SCR","Seychellois Rupee",""],
+  ["SDG","Sudanese Pound",""],
+  ["SEK","瑞典克朗","kr"],
+  ["SHP","Saint Helenian Pound",""],
+  ["SLE","Sierra Leonean Leone",""],
+  ["SOS","Somali Shilling",""],
+  ["SRD","Surinamese Dollar",""],
+  ["SSP","South Sudanese Pound",""],
+  ["STN","Sao Tomean Dobra",""],
+  ["SVC","Salvadoran Colon",""],
+  ["SYP","Syrian Pound",""],
+  ["SZL","Swazi Lilangeni",""],
+  ["TJS","Tajikistani Somoni",""],
+  ["TMT","Turkmenistani Manat",""],
+  ["TND","Tunisian Dinar",""],
+  ["TOP","Tongan Pa'anga",""],
+  ["TRY","土耳其里拉","₺"],
+  ["TTD","Trinidadian Dollar",""],
+  ["TZS","Tanzanian Shilling",""],
+  ["UAH","乌克兰格里夫纳",""],
+  ["UGX","Ugandan Shilling",""],
+  ["UYU","Uruguayan Peso",""],
+  ["UZS","Uzbekistani Som",""],
+  ["VED","",""],
+  ["VES","Venezuelan Bolívar",""],
+  ["VUV","Ni-Vanuatu Vatu",""],
+  ["WST","Samoan Tala",""],
+  ["XAF","Central African CFA Franc BE",""],
+  ["XCD","East Caribbean Dollar",""],
+  ["XOF","CFA Franc",""],
+  ["XPF","CFP Franc",""],
+  ["YER","Yemeni Rial",""],
+  ["ZMW","Zambian Kwacha",""],
+  ["ZWG","",""]
 ];
 var $ = function(id){ return document.getElementById(id); };
 var rates = {}, base = "USD";
