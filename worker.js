@@ -142,14 +142,16 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
   </section>
   <section id="tabShip" class="hidden">
     <div class="card">
-      <div class="lbl">包裹尺寸</div>
+      <div class="lbl">尺寸</div>
       <div class="dim-row">
         <input id="dL" type="number" inputmode="decimal" min="0" placeholder="长">
         <input id="dW" type="number" inputmode="decimal" min="0" placeholder="宽">
         <input id="dH" type="number" inputmode="decimal" min="0" placeholder="高">
         <div class="unit-toggle" id="dimUnit"><button data-u="cm" class="on">cm</button><button data-u="in">inch</button></div>
       </div>
-      <div class="lbl" style="margin-top:14px">实际重量</div>
+    </div>
+    <div class="card">
+      <div class="lbl">重量</div>
       <div class="dim-row">
         <input id="dWt" type="number" inputmode="decimal" min="0" placeholder="重量">
         <div class="unit-toggle" id="wtUnit"><button data-u="kg" class="on">kg</button><button data-u="lb">lb</button></div>
