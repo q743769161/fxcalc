@@ -103,11 +103,29 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
 .meta{font-size:12px;color:#636366;margin-top:10px}
 .err{color:#ff3b30;font-size:14px;margin-top:12px;min-height:20px}
 .foot{text-align:center;font-size:12px;color:#8e8e93;margin-top:26px;text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.tabs{display:flex;border-radius:999px;padding:4px;margin:2px 0 4px;background:rgba(255,255,255,.34);-webkit-backdrop-filter:blur(30px) saturate(200%);backdrop-filter:blur(30px) saturate(200%);border:1px solid rgba(255,255,255,.8);box-shadow:0 8px 28px rgba(60,60,90,.14)}
+.tabs button{flex:1;border:none;background:none;padding:10px;font-size:15px;font-weight:600;color:#3a3a3c;border-radius:999px;cursor:pointer}
+.tabs button.on{background:rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(60,60,90,.16);color:#1c1c1e}
+.dim-row{display:flex;gap:8px;align-items:center}
+.dim-row input{flex:1;min-width:0;padding:12px 6px;font-size:18px;font-weight:600;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.8);border-radius:12px;outline:none;color:#1c1c1e;text-align:center;font-variant-numeric:tabular-nums}
+.dim-row input::placeholder{color:#aeaeb2;font-weight:400}
+.unit-toggle{display:flex;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.8);flex:none}
+.unit-toggle button{border:none;background:rgba(255,255,255,.35);padding:12px 13px;font-size:14px;font-weight:600;color:#636366;cursor:pointer}
+.unit-toggle button.on{background:#007aff;color:#fff}
+.stat{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;margin:13px 0;position:relative;z-index:1;color:#3a3a3c}
+.stat b{font-size:19px;font-variant-numeric:tabular-nums;color:#1c1c1e}
+.stat.big{border-top:1px solid rgba(0,0,0,.08);padding-top:15px;margin-top:15px}
+.stat.big b{font-size:28px;color:#007aff}
 </style>
 </head>
 <body>
 <div class="screen">
   <header><h1>汇率速算</h1><p>跨境卖家随手换算</p></header>
+  <div class="tabs">
+    <button id="tabBtnFx" class="on">汇率</button>
+    <button id="tabBtnShip">物流</button>
+  </div>
+  <section id="tabFx">
   <div class="card">
     <div class="lbl">金额</div>
     <input id="amount" class="big-input" type="number" inputmode="decimal" min="0" placeholder="0" value="100">
@@ -124,6 +142,30 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
     <div class="result-num" id="result">—</div>
     <div class="meta" id="updated"></div>
   </div>
+  </section>
+  <section id="tabShip" class="hidden">
+    <div class="card">
+      <div class="lbl">包裹尺寸</div>
+      <div class="dim-row">
+        <input id="dL" type="number" inputmode="decimal" min="0" placeholder="长">
+        <input id="dW" type="number" inputmode="decimal" min="0" placeholder="宽">
+        <input id="dH" type="number" inputmode="decimal" min="0" placeholder="高">
+        <div class="unit-toggle" id="dimUnit"><button data-u="cm" class="on">cm</button><button data-u="in">inch</button></div>
+      </div>
+      <div class="lbl" style="margin-top:14px">实际重量</div>
+      <div class="dim-row">
+        <input id="dWt" type="number" inputmode="decimal" min="0" placeholder="重量">
+        <div class="unit-toggle" id="wtUnit"><button data-u="kg" class="on">kg</button><button data-u="lb">lb</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="stat"><span>体积</span><b id="rCbm">—</b></div>
+      <div class="stat"><span>体积重（快递 ÷5000）</span><b id="rVol5">—</b></div>
+      <div class="stat"><span>体积重（空运 ÷6000）</span><b id="rVol6">—</b></div>
+      <div class="stat big"><span>计费重</span><b id="rChg">—</b></div>
+      <div class="meta">计费重按快递口径（÷5000）：实际重量与体积重取大者</div>
+    </div>
+  </section>
   <div class="foot">汇率每日更新 · 仅供参考，实际以银行成交价为准</div>
 </div>
 <script>
@@ -344,6 +386,44 @@ function init(){
     load($("fromSel").value);
   };
   load(f);
+}
+/* ---- 物流尺寸/重量 ---- */
+$("tabBtnFx").onclick = function(){ showTab("Fx"); };
+$("tabBtnShip").onclick = function(){ showTab("Ship"); };
+function showTab(t){
+  $("tabBtnFx").classList.toggle("on", t === "Fx");
+  $("tabBtnShip").classList.toggle("on", t === "Ship");
+  $("tabFx").classList.toggle("hidden", t !== "Fx");
+  $("tabShip").classList.toggle("hidden", t !== "Ship");
+}
+var dimU = "cm", wtU = "kg";
+function bindToggle(id, cb){
+  var box = $(id), btns = box.querySelectorAll("button");
+  for(var i=0;i<btns.length;i++){ (function(b){ b.onclick = function(){
+    for(var j=0;j<btns.length;j++) btns[j].classList.remove("on");
+    b.classList.add("on"); cb(b.getAttribute("data-u"));
+  }; })(btns[i]); }
+}
+bindToggle("dimUnit", function(u){ dimU = u; calcShip(); });
+bindToggle("wtUnit", function(u){ wtU = u; calcShip(); });
+["dL","dW","dH","dWt"].forEach(function(id){ $(id).addEventListener("input", calcShip); });
+function kgLb(kg){ return kg.toFixed(2) + " kg / " + (kg * 2.20462262).toFixed(2) + " lb"; }
+function calcShip(){
+  var L = parseFloat($("dL").value) || 0, W = parseFloat($("dW").value) || 0, H = parseFloat($("dH").value) || 0;
+  var wt = parseFloat($("dWt").value) || 0;
+  if(dimU === "in"){ L *= 2.54; W *= 2.54; H *= 2.54; }
+  if(wtU === "lb"){ wt *= 0.45359237; }
+  if(!(L > 0 && W > 0 && H > 0)){
+    $("rCbm").textContent = "—"; $("rVol5").textContent = "—"; $("rVol6").textContent = "—";
+    $("rChg").textContent = wt > 0 ? kgLb(wt) : "—";
+    return;
+  }
+  var cbm = L * W * H / 1e6;
+  var v5 = L * W * H / 5000, v6 = L * W * H / 6000;
+  $("rCbm").textContent = (cbm < 0.01 ? cbm.toFixed(4) : cbm.toFixed(3)) + " m³";
+  $("rVol5").textContent = kgLb(v5);
+  $("rVol6").textContent = kgLb(v6);
+  $("rChg").textContent = kgLb(Math.max(wt, v5));
 }
 init();
 </script>
