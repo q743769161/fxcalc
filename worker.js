@@ -112,10 +112,7 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
 .unit-toggle{display:flex;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.8);flex:none}
 .unit-toggle button{border:none;background:rgba(255,255,255,.35);padding:12px 13px;font-size:14px;font-weight:600;color:#636366;cursor:pointer}
 .unit-toggle button.on{background:#007aff;color:#fff}
-.stat{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;margin:13px 0;position:relative;z-index:1;color:#3a3a3c}
-.stat b{font-size:19px;font-variant-numeric:tabular-nums;color:#1c1c1e}
-.stat.big{border-top:1px solid rgba(0,0,0,.08);padding-top:15px;margin-top:15px}
-.stat.big b{font-size:28px;color:#007aff}
+
 </style>
 </head>
 <body>
@@ -157,12 +154,6 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
         <input id="dWt" type="number" inputmode="decimal" min="0" placeholder="重量">
         <div class="unit-toggle" id="wtUnit"><button data-u="kg" class="on">kg</button><button data-u="lb">lb</button></div>
       </div>
-    </div>
-    <div class="card">
-        <div class="stat"><span>体积重（快递 ÷5000）</span><b id="rVol5">—</b></div>
-      <div class="stat"><span>体积重（空运 ÷6000）</span><b id="rVol6">—</b></div>
-      <div class="stat big"><span>计费重</span><b id="rChg">—</b></div>
-      <div class="meta">计费重按快递口径（÷5000）：实际重量与体积重取大者</div>
     </div>
   </section>
   <div class="foot">汇率每日更新 · 仅供参考，实际以银行成交价为准</div>
@@ -394,33 +385,6 @@ function showTab(t){
   $("tabBtnShip").classList.toggle("on", t === "Ship");
   $("tabFx").classList.toggle("hidden", t !== "Fx");
   $("tabShip").classList.toggle("hidden", t !== "Ship");
-}
-var dimU = "cm", wtU = "kg";
-function bindToggle(id, cb){
-  var box = $(id), btns = box.querySelectorAll("button");
-  for(var i=0;i<btns.length;i++){ (function(b){ b.onclick = function(){
-    for(var j=0;j<btns.length;j++) btns[j].classList.remove("on");
-    b.classList.add("on"); cb(b.getAttribute("data-u"));
-  }; })(btns[i]); }
-}
-bindToggle("dimUnit", function(u){ dimU = u; calcShip(); });
-bindToggle("wtUnit", function(u){ wtU = u; calcShip(); });
-["dL","dW","dH","dWt"].forEach(function(id){ $(id).addEventListener("input", calcShip); });
-function kgLb(kg){ return kg.toFixed(2) + " kg / " + (kg * 2.20462262).toFixed(2) + " lb"; }
-function calcShip(){
-  var L = parseFloat($("dL").value) || 0, W = parseFloat($("dW").value) || 0, H = parseFloat($("dH").value) || 0;
-  var wt = parseFloat($("dWt").value) || 0;
-  if(dimU === "in"){ L *= 2.54; W *= 2.54; H *= 2.54; }
-  if(wtU === "lb"){ wt *= 0.45359237; }
-  if(!(L > 0 && W > 0 && H > 0)){
-    $("rVol5").textContent = "—"; $("rVol6").textContent = "—";
-    $("rChg").textContent = wt > 0 ? kgLb(wt) : "—";
-    return;
-  }
-  var v5 = L * W * H / 5000, v6 = L * W * H / 6000;
-  $("rVol5").textContent = kgLb(v5);
-  $("rVol6").textContent = kgLb(v6);
-  $("rChg").textContent = kgLb(Math.max(wt, v5));
 }
 init();
 </script>
