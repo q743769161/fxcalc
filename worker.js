@@ -123,7 +123,7 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
   <header><h1>汇率速算</h1><p>跨境卖家随手换算</p></header>
   <div class="tabs">
     <button id="tabBtnFx" class="on">汇率</button>
-    <button id="tabBtnShip">物流</button>
+    <button id="tabBtnShip">尺寸重量</button>
   </div>
   <section id="tabFx">
   <div class="card">
@@ -159,8 +159,7 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
       </div>
     </div>
     <div class="card">
-      <div class="stat"><span>体积</span><b id="rCbm">—</b></div>
-      <div class="stat"><span>体积重（快递 ÷5000）</span><b id="rVol5">—</b></div>
+        <div class="stat"><span>体积重（快递 ÷5000）</span><b id="rVol5">—</b></div>
       <div class="stat"><span>体积重（空运 ÷6000）</span><b id="rVol6">—</b></div>
       <div class="stat big"><span>计费重</span><b id="rChg">—</b></div>
       <div class="meta">计费重按快递口径（÷5000）：实际重量与体积重取大者</div>
@@ -414,13 +413,11 @@ function calcShip(){
   if(dimU === "in"){ L *= 2.54; W *= 2.54; H *= 2.54; }
   if(wtU === "lb"){ wt *= 0.45359237; }
   if(!(L > 0 && W > 0 && H > 0)){
-    $("rCbm").textContent = "—"; $("rVol5").textContent = "—"; $("rVol6").textContent = "—";
+    $("rVol5").textContent = "—"; $("rVol6").textContent = "—";
     $("rChg").textContent = wt > 0 ? kgLb(wt) : "—";
     return;
   }
-  var cbm = L * W * H / 1e6;
   var v5 = L * W * H / 5000, v6 = L * W * H / 6000;
-  $("rCbm").textContent = (cbm < 0.01 ? cbm.toFixed(4) : cbm.toFixed(3)) + " m³";
   $("rVol5").textContent = kgLb(v5);
   $("rVol6").textContent = kgLb(v6);
   $("rChg").textContent = kgLb(Math.max(wt, v5));
