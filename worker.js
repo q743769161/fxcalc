@@ -112,6 +112,8 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
 .unit-toggle{display:flex;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.8);flex:none}
 .unit-toggle button{border:none;background:rgba(255,255,255,.35);padding:12px 13px;font-size:14px;font-weight:600;color:#636366;cursor:pointer}
 .unit-toggle button.on{background:#007aff;color:#fff}
+.conv{margin-top:12px;min-height:22px;font-size:14px;color:#636366;text-align:center;font-variant-numeric:tabular-nums;position:relative;z-index:1}
+.conv b{color:#007aff;font-size:18px}
 
 </style>
 </head>
@@ -149,6 +151,7 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
         <input id="dH" type="number" inputmode="decimal" min="0" placeholder="高">
         <div class="unit-toggle" id="dimUnit"><button data-u="cm" class="on">cm</button><button data-u="in">inch</button></div>
       </div>
+      <div class="conv" id="dimConv"></div>
     </div>
     <div class="card">
       <div class="lbl">重量</div>
@@ -156,6 +159,7 @@ header p{margin:6px 0 0;font-size:14px;color:#636366}
         <input id="dWt" type="number" inputmode="decimal" min="0" placeholder="重量">
         <div class="unit-toggle" id="wtUnit"><button data-u="kg" class="on">kg</button><button data-u="lb">lb</button></div>
       </div>
+      <div class="conv" id="wtConv"></div>
     </div>
   </section>
   <div class="foot">汇率每日更新 · 仅供参考，实际以银行成交价为准</div>
@@ -388,6 +392,37 @@ function showTab(t){
   $("tabFx").classList.toggle("hidden", t !== "Fx");
   $("tabShip").classList.toggle("hidden", t !== "Ship");
 }
+/* ---- 尺寸/重量单位换算 ---- */
+var dimU = "cm", wtU = "kg";
+function bindToggle(id, cb){
+  var box = $(id), btns = box.querySelectorAll("button");
+  for(var i=0;i<btns.length;i++){ (function(b){ b.onclick = function(){
+    for(var j=0;j<btns.length;j++) btns[j].classList.remove("on");
+    b.classList.add("on"); cb(b.getAttribute("data-u"));
+  }; })(btns[i]); }
+}
+function trimNum(n){ return String(parseFloat(n.toFixed(2))); }
+function calcConv(){
+  var vals = [$("dL").value, $("dW").value, $("dH").value], labels = ["长","宽","高"], parts = [];
+  for(var i=0;i<3;i++){
+    var v = parseFloat(vals[i]);
+    if(v > 0){
+      var c = dimU === "in" ? v * 2.54 : v / 2.54;
+      parts.push(labels[i] + " " + trimNum(c) + (dimU === "in" ? " cm" : " in"));
+    }
+  }
+  $("dimConv").innerHTML = parts.join("　·　");
+  var w = parseFloat($("dWt").value);
+  if(w > 0){
+    var cw = wtU === "lb" ? w * 0.45359237 : w * 2.20462262;
+    $("wtConv").innerHTML = "≈ <b>" + trimNum(cw) + (wtU === "lb" ? " kg" : " lb") + "</b>";
+  } else {
+    $("wtConv").innerHTML = "";
+  }
+}
+bindToggle("dimUnit", function(u){ dimU = u; calcConv(); });
+bindToggle("wtUnit", function(u){ wtU = u; calcConv(); });
+["dL","dW","dH","dWt"].forEach(function(id){ $(id).addEventListener("input", calcConv); });
 init();
 </script>
 </body>
